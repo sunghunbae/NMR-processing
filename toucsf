@@ -1,3 +1,0 @@
-xyz2pipe -in ft/test%03d.ft3 > a.pipe
-pipe2ucsf a.pipe $1
-rm -f a.pipe
