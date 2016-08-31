@@ -2,7 +2,7 @@
 NMR data conversion and processing scripts for NMRPipe and Sparky
 
 ## Bruker HNCO(hncogp3d or b_hncogp3d)
-'''
+<pre>
 #!/bin/csh
 
 bruk2pipe -in ./ser \
@@ -16,4 +16,4 @@ bruk2pipe -in ./ser \
   -xLAB              HN  -yLAB             15N  -zLAB             13C  \
   -ndim               3  -aq2D          States                         \
   -out ./fid/test%03d.fid -verb -ov
-'''
+</pre>
