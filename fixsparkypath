@@ -1,0 +1,86 @@
+#!/bin/tcsh
+#
+# fix sparky .save pathname in the .proj files 05/18/2010
+# fix sparky .ucsf pathname in the .save files 03/11/2010 
+# coloring text 02/03/2011
+# fixed width output 11/29/2011
+#
+# written by Sung-Hun Bae
+#
+
+set nonomatch
+
+set curdir = `pwd`
+set savefiles = `find ./ -maxdepth 1 -name \*.save`
+set projfiles = `find ./ -maxdepth 1 -name \*.proj`
+
+# ANSI code
+set WARNING="\033[44;37m"
+set ERROR="\033[41;37m"
+set NORM="\033[0m"
+
+# check .save files
+foreach a ($savefiles)
+	set savebase = `basename $a .save`
+	awk -v str=$savebase 'BEGIN{printf("%-70s ",substr(str,0,70))}'
+	set ucsfpath = `grep pathname $a | awk '{print $2}'`
+	set ucsfbase = `basename $ucsfpath`
+	set Status  = 0 
+	# 0:reset, 1:ok, 2:convert, 3:error
+	if ( $ucsfpath =~ /* ) then
+		if (-e $ucsfpath ) then
+			set Status = 1
+		else
+			if (-e $ucsfbase ) then
+				set Status = 2
+			else
+				set Status = 3
+			endif
+		endif
+	else
+		if (-e $ucsfbase ) then
+			set Status = 2
+		else
+			set Status = 3
+		endif
+	endif
+
+	switch ($Status)
+		case 1:
+			echo "ok"
+			breaksw
+		case 2:
+			cp $a ${ucsfbase}.1
+        	awk -v p=$curdir -v n=${ucsfbase} \
+				'{if ($1=="pathname") printf("pathname %s/%s\n",p,n);\
+            	else print $0;}' ${ucsfbase}.1 > $a
+        	rm -f ${ucsfbase}.1
+        	echo "${WARNING}fixed${NORM}"
+			breaksw
+		case 3:
+			echo "${ERROR}no ucsf${NORM}"
+			breaksw
+		endsw
+
+end
+
+foreach j ($projfiles)
+	awk -v str=$j 'BEGIN{printf("%-70s\n",substr(str,0,70))}'
+	sed -n '1,/\<savefiles\>/ p' $j > ${j}.1
+   	set savefiles = `sed -n '/\<savefiles\>/,/\<end\ savefiles\>/ p' $j | awk '/^[^<]/{print $0}' `
+	foreach savepath ($savefiles)
+		set savebase = `basename $savepath .save`
+		awk -v str=$savebase 'BEGIN{printf("%-70s ",substr(str,0,70))}'
+		if (-e ${savepath}) then
+			echo ${savepath} >> ${j}.1
+			echo "ok"
+		else if (-e ${savebase}.save) then
+			echo $curdir/${savebase}.save >> ${j}.1
+			echo "ok"
+    	else 
+			echo "${ERROR}no save${NORM}"
+		endif 
+	end
+	sed -n '/\<end\ savefiles\>/,$ p' $j >> ${j}.1
+	mv ${j}.1 $j
+end
