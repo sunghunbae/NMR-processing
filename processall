@@ -1,0 +1,51 @@
+#!/bin/bash
+if [ $# -lt 2 ]
+then
+  echo "  process nmr data using template .com NMRPipe scripts"
+  echo "  usage: processall <start> <end> [<template>(default=start)]"
+  echo
+  exit 0
+fi
+
+if [ $# -eq 3 ] 
+then
+  start=$1
+  end=$2
+  template=$3
+fi 
+
+if [ $# -eq 2 ] 
+then
+  start=$1
+  end=$2
+  template=$1
+fi
+
+i=$start
+until [ $i -gt $end ]
+do
+  if [ -d "$i/" ]
+  then 
+    if [ $template -ne $i -a -e "$template/fid.com" ] 
+    then
+      echo "cp $template/fid.com $i/"
+      cp $template/fid.com $i/
+    fi
+    if [ $template -ne $i -a -e "$template/nmrproc.com" ] 
+    then
+      echo "cp $template/nmrproc.com $i/"
+      cp $template/nmrproc.com $i/
+    fi
+    echo "cd $i/"
+    cd $i/
+    echo "./fid.com"
+    ./fid.com
+    echo "./nmrproc.com"
+    ./nmrproc.com
+    echo "pipe2ucsf test.ft2 ../${i}.ucsf"
+    pipe2ucsf test.ft2 ../${i}.ucsf
+    echo "cd .."
+    cd ..
+  fi 
+  let i+=1
+done
