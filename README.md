@@ -8,6 +8,7 @@ NMR data conversion and processing scripts for NMRPipe and Sparky
   * 3D HNCA - hncagp3d or b_hncagp3d
   * 3D HN(CO)CA - hncocagp3d or b_hncocagp3d
 
+#### Example NMRPipe script
 ```
 #!/bin/csh
 
@@ -25,6 +26,7 @@ bruk2pipe -in ./ser \
 ```
 ### Process NMRpipe data
 
+#### Example NMRPipe script
 ```
 #!/bin/csh
 
