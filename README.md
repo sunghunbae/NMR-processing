@@ -55,3 +55,10 @@ xyz2pipe -in ft/test%03d.ft2 -z -verb               \
 | nmrPipe  -fn POLY -auto                           \
 | pipe2xyz -out ft/test%03d.ft3 -z
 ```
+
+### Convert processed NMRPipe data to a Sparky .ucsf file
+
+```
+xyz2pipe -in ft/test%03d.ft3 > a.pipe
+pipe2ucsf a.pipe a.ucsf
+```
