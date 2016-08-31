@@ -3,10 +3,10 @@ NMR data conversion and processing scripts for NMRPipe and Sparky
 
 ## Convert Bruker NMR data to NMRpipe
 
-### 3D HNCO - hncogp3d or b_hncogp3d
-### 3D HN(CA)CO - hncacogp3d or b_hncacogp3d
-### 3D HNCA - hncagp3d or b_hncagp3d
-### 3D HN(CO)CA - hncocagp3d or b_hncocagp3d
+  * 3D HNCO - hncogp3d or b_hncogp3d
+  * 3D HN(CA)CO - hncacogp3d or b_hncacogp3d
+  * 3D HNCA - hncagp3d or b_hncagp3d
+  * 3D HN(CO)CA - hncocagp3d or b_hncocagp3d
 
 ```
 #!/bin/csh
