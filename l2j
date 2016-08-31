@@ -1,0 +1,106 @@
+#!/usr/bin/env python
+
+import sys,re,math
+
+if (len(sys.argv) < 2):
+	print ""
+	print "\tcalc. coupling (J or D) from Sparky .list file(s)"
+	print ""
+	print "\tusage : l2j [.list] [.list] ......"
+	print ""
+	sys.exit(0)
+
+class AutoVivification(dict):
+    """Implementation of perl's autovivification feature."""
+    def __getitem__(self, item):
+        try:
+            return dict.__getitem__(self, item)
+        except KeyError:
+            value = self[item] = type(self)()
+            return value
+
+Header   = re.compile(r"^Assignment")
+ResParse = re.compile(r"(\d+\'*|[a-zA-Z]+)")
+Iso      = re.compile(r'.*_iso_.*')
+Pf1      = re.compile(r'.*_pf[1-9]_.*')
+
+PeakPos = AutoVivification ()
+
+nResonance = 0
+for listfile in sys.argv[1:]:
+	try:
+		f = open(listfile, 'r')
+	except IOError:
+		print ">>> ERROR: cannot open " + listfile
+		sys.exit(0)
+
+	# typical listfile names
+	# 2012_02_09_mir122L.C10A13_iso_25c_ctrosy_aro_00.list    ---> RDC
+	# 2012_02_09_mir122L.C10A13_iso_25c_ctrosy_aro_01.list    ---> RDC
+	# 2012_02_20_mir122L.U16A17_iso_25c_ch2_s3e_00.list       ---> RDC
+	# 2012_02_20_mir122L.U16A17_iso_25c_ch2_s3e_01.list       ---> RDC
+	# 2012_02_07_mir122L.C10A13_25c_hcc_tocsy_cch_ecosy.list  ---> J
+
+	# t= experiment type
+	t = 0
+	if Iso.match(listfile) : t = 1 # isotropic
+	if Pf1.match(listfile) : t = 2 # anisotropic
+
+	# s= experiment series
+	s = (((listfile.split('_')[-1:])[0]).split('.'))[0] # 00 01 ...
+
+	nPeaks = 0
+	for line in f.readlines():
+		line = line.strip()
+		if not Header.match (line) and line:
+			col = line.split()
+			nPeaks += 1
+			peakId = ResParse.findall(col[0])
+			name = ''.join(peakId[2:])
+			resSeq = int(peakId[1])
+			
+			if len(col) == 5 : # 2D
+				(w1,w2) = (float(col[3]), float(col[4]))
+				if PeakPos[t][resSeq][name]:
+					PeakPos[t][resSeq][name].append((w1,w2))
+				else:
+					PeakPos[t][resSeq][name] = [(w1,w2)]
+
+			if len(col) == 7 : # 3D
+				(w1,w2,w3) = (float(col[4]), float(col[5]), float(col[6]))
+				print t,resSeq,name, w1,w2,w3
+				if PeakPos[t][resSeq][name]:
+					PeakPos[t][resSeq][name].append((w1,w2,w3))
+				else:
+					PeakPos[t][resSeq][name] = [(w1,w2,w3)]
+
+
+	print "# %3d peaks %s %1d %s" % (nPeaks, listfile, t, s)
+
+print "%4s %-8s %7s %7s" % ("#res","peak", "f1(Hz)", "f2(Hz)")
+for t in sorted(PeakPos):
+	for r in sorted(PeakPos[t]):
+		for n in sorted(PeakPos[t][r]):
+			nset = len(PeakPos[t][r][n]) / 2
+			for a in range (0,nset):
+				if len(PeakPos[t][r][n][2*a+0]) == 2:
+					(w1a,w2a) = PeakPos[t][r][n][2*a+0]
+					(w1b,w2b) = PeakPos[t][r][n][2*a+1]
+					J1 = w1b - w1a
+					J2 = w2b - w2a
+					if math.fabs(J1) > math.fabs(J2) :
+						if J1 < 0.: 
+							J1 *= -1.
+							J2 *= -1.
+					else :
+						if J2 < 0.: 
+							J1 *= -1.
+							J2 *= -1.
+					print "%4d %-8s %7.2f %7.2f" % (r, n, J1, J2)
+				if len(PeakPos[t][r][n][2*a+0]) == 3:
+					(w1a,w2a,w3a) = PeakPos[t][r][n][2*a+0]
+					(w1b,w2b,w3b) = PeakPos[t][r][n][2*a+1]
+					J1 = w1b - w1a
+					J2 = w2b - w2a
+					J3 = w3b - w3a
+					print "%4d %-12s %7.2f %7.2f %7.2f" % (r, n, J1, J2, J3)

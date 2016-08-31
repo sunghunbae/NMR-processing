@@ -1,0 +1,265 @@
+#!/usr/bin/perl
+#
+# calculate coupling (J or D) from Sparky .list output
+#
+# usage : list2j [list1] [list2] [[list3] [list4]]
+#
+# modified by Sung-HUn Bae Dec 6, 2011
+#   - remove # for column selection ===> auto
+# modified by Sung-Hun Bae June 21, 2011 
+#	- use 'note' for selection
+# written by Sung-Hun Bae July 13, 2010
+#
+
+
+# set global variables
+@B = ("C2-H2","C5-H5","C6-H6","C8-H8","C1'-H1'","C2'-H2'","C3'-H3'","C4'-H4'","N1-H1","N3-H3","C5'-H5'","C5'-H5''","H5'-H5''","H5''-H5'");
+@J = ();
+$default_error = 1.0;
+$default_tag = "*";
+
+# help
+if (!($#ARGV == 3 || $#ARGV == 1)) {
+	printf ("\n\tcalculate J or D from Sparky .list output files\n");
+    printf ("\n\tusage : list2j iso_0 iso_1 aniso_0 aniso_1");
+    printf ("\n\t        list2j iso_0 iso_1\n\n");
+	printf ("\t# = column number for J/D calculation\n\n");
+	printf ("\t------------------------------------------\n");
+    printf ("\tSPARKY .list file headers                 \n");
+	printf ("\t------------------------------------------\n");
+    printf ("\tAssignment w1 w2 w1\(Hz\) w2\(Hz\) Note   \n");
+    printf ("\tAssignment w1 w2 w1\(Hz\) w2\(Hz\)        \n");
+    printf ("\tAssignment w1\(Hz\) w2\(Hz\)              \n");
+	printf ("\t------------------------------------------\n");
+    exit;
+    }
+
+# Residual Dipolar Coupling
+if ($#ARGV == 3) {
+	&Read_Sparky_List ("iso_up",$ARGV[0]);
+	&Read_Sparky_List ("iso_dn",$ARGV[1]);
+	&Read_Sparky_List ("ani_up",$ARGV[2]);
+	&Read_Sparky_List ("ani_dn",$ARGV[3]);
+    foreach $bvec (sort keys %J) {
+      foreach $resid (sort {$a <=> $b} keys %{$J{$bvec}} ) {
+        foreach $resName (sort keys %{$J{$bvec}{$resid}} ) {
+          foreach $idstr (sort keys %{$J{$bvec}{$resid}{$resName}} ) {
+            $checked = 0;
+            if (defined $J{$bvec}{$resid}{$resName}{$idstr}{iso_dn}{x} and 
+                defined $J{$bvec}{$resid}{$resName}{$idstr}{iso_up}{x}) {
+                $jcoup_x_iso = $J{$bvec}{$resid}{$resName}{$idstr}{iso_dn}{x} - 
+                             $J{$bvec}{$resid}{$resName}{$idstr}{iso_up}{x};
+                $checked++;
+                }
+            if (defined $J{$bvec}{$resid}{$resName}{$idstr}{iso_dn}{h} and 
+                defined $J{$bvec}{$resid}{$resName}{$idstr}{iso_up}{h}) {
+                $jcoup_h_iso = $J{$bvec}{$resid}{$resName}{$idstr}{iso_dn}{h} - 
+                             $J{$bvec}{$resid}{$resName}{$idstr}{iso_up}{h};
+                $checked++;
+                }
+            if (defined $J{$bvec}{$resid}{$resName}{$idstr}{ani_dn}{x} and 
+                defined $J{$bvec}{$resid}{$resName}{$idstr}{ani_up}{x}) {
+                $jcoup_x_ani = $J{$bvec}{$resid}{$resName}{$idstr}{ani_dn}{x} - 
+                             $J{$bvec}{$resid}{$resName}{$idstr}{ani_up}{x};
+                $checked++;
+                }
+            if (defined $J{$bvec}{$resid}{$resName}{$idstr}{ani_dn}{h} and 
+                defined $J{$bvec}{$resid}{$resName}{$idstr}{ani_up}{h}) {
+                $jcoup_h_ani = $J{$bvec}{$resid}{$resName}{$idstr}{ani_dn}{h} - 
+                             $J{$bvec}{$resid}{$resName}{$idstr}{ani_up}{h};
+                $checked++;
+                }
+            if ($checked == 4) {
+				if ($jcoup_x_iso < 0.0) {
+					$jcoup_x_iso = -1.0*$jcoup_x_iso;
+					}
+				if ($jcoup_h_iso < 0.0) {
+					$jcoup_h_iso = -1.0*$jcoup_h_iso;
+					}
+				if ($jcoup_x_ani < 0.0) {
+					$jcoup_x_ani = -1.0*$jcoup_x_ani;
+					}
+				if ($jcoup_h_ani < 0.0) {
+					$jcoup_h_ani = -1.0*$jcoup_h_ani;
+					}
+				if ($jcoup_x_iso < $jcoup_h_iso) {
+					$jcoup_iso = $jcoup_h_iso;
+					}
+				else {
+					$jcoup_iso = $jcoup_x_iso;
+					}
+				if ($jcoup_x_ani < $jcoup_h_ani) {
+					$jcoup_ani = $jcoup_h_ani;
+					}
+				else {
+					$jcoup_ani = $jcoup_x_ani;
+					}
+
+				$coupling = $jcoup_ani - $jcoup_iso;
+
+                @nuc = split (/-/, $bvec);
+
+				# for N15 coupling
+				if ($bvec =~ "N3-H3" or $bvec =~ "N1-H1") {
+					Write_Coupling ( $resid, $resName,$nuc[0], $nuc[1], 
+						-$coupling, $default_error, $default_tag,$idstr,
+						$jcoup_ani, $jcoup_iso,
+						$J{$bvec}{$resid}{$resName}{$idstr}{note}); 
+					}
+				else {
+					Write_Coupling ( $resid, $resName,$nuc[0], $nuc[1], 
+						$coupling, $default_error, $default_tag,$idstr,
+						$jcoup_ani, $jcoup_iso,
+						$J{$bvec}{$resid}{$resName}{$idstr}{note}); 
+					}
+                }
+            }
+          }
+        }
+      }
+	}
+# Scalar Coupling
+else {
+	&Read_Sparky_List ("up",$ARGV[0]);
+	&Read_Sparky_List ("dn",$ARGV[1]);
+    foreach $bvec (sort keys %J) {
+      foreach $resid (sort {$a <=> $b} keys %{$J{$bvec}} ) {
+        foreach $resName (sort keys %{$J{$bvec}{$resid}} ) {
+          foreach $idstr (sort keys %{$J{$bvec}{$resid}{$resName}} ) {
+            $checked = 0;
+			$dim = 'x';
+            if (defined $J{$bvec}{$resid}{$resName}{$idstr}{dn}{x} and 
+                defined $J{$bvec}{$resid}{$resName}{$idstr}{up}{x}) {
+                $jcoup_x = $J{$bvec}{$resid}{$resName}{$idstr}{dn}{x} - 
+                             $J{$bvec}{$resid}{$resName}{$idstr}{up}{x};
+                $checked++;
+                }
+            if (defined $J{$bvec}{$resid}{$resName}{$idstr}{dn}{h} and 
+                defined $J{$bvec}{$resid}{$resName}{$idstr}{up}{h}) {
+                $jcoup_h = $J{$bvec}{$resid}{$resName}{$idstr}{dn}{h} - 
+                             $J{$bvec}{$resid}{$resName}{$idstr}{up}{h};
+                $checked++;
+                }
+            if ($checked == 2) {
+				if ($jcoup_x < 0.0) {
+					$jcoup_x = -$jcoup_x;
+					}
+				if ($jcoup_h < 0.0) {
+					$jcoup_h = -$jcoup_h;
+					}
+				if ($jcoup_x < $jcoup_h) {
+					$coupling = $jcoup_h;
+					$dim = 'h';
+					}
+				else {
+					$coupling = $jcoup_x;
+					$dim = 'x';
+					}
+                @nuc = split (/-/, $bvec);
+				# for N15 coupling
+				if ($bvec =~ "N3-H3" or $bvec =~ "N1-H1") {
+					Write_Coupling ( $resid, $resName, $nuc[0], $nuc[1],
+						-$coupling, $default_error, $default_tag, $idstr,
+                		$J{$bvec}{$resid}{$resName}{$idstr}{dn}{$dim},
+                    	$J{$bvec}{$resid}{$resName}{$idstr}{up}{$dim},
+						$J{$bvec}{$resid}{$resName}{$idstr}{note}); 
+					}
+				else {
+					Write_Coupling ( $resid, $resName, $nuc[0], $nuc[1],
+						$coupling, $default_error, $default_tag, $idstr,
+                		$J{$bvec}{$resid}{$resName}{$idstr}{dn}{$dim},
+                    	$J{$bvec}{$resid}{$resName}{$idstr}{up}{$dim},
+						$J{$bvec}{$resid}{$resName}{$idstr}{note}); 
+					}
+                }
+            }
+          }
+        }
+      }
+	}
+
+
+sub Read_Sparky_List {
+    ($listname, $filename) = @_;
+    open (INPUT,$filename) or die "cannot open $filename";
+    @list = <INPUT>;
+    close (INPUT);
+	$header_w1_ppm = 0;
+	$header_w2_ppm = 0;
+	$header_w1_Hz  = 0;
+	$header_w2_Hz  = 0;
+	$header_note   = 0;
+    foreach $line (@list) {
+		# remove '\n'
+        chomp ($line);
+		# remove trailing spaces
+        $line =~ s/^\s+//;
+        $line =~ s/\s+$//;
+		# header
+        if ($line =~ m/Assignment/) {
+			if ($line =~ m/w1    /) 	{ $header_w1_ppm = 1; }
+			if ($line =~ m/w2    /) 	{ $header_w2_ppm = 1; }
+			if ($line =~ m/w1 \(Hz\)  /){ $header_w1_Hz  = 1; }
+			if ($line =~ m/w2 \(Hz\)  /){ $header_w2_Hz  = 1; } 
+			if ($line =~ m/Note/) 		{ $header_note   = 1; }
+			if (!($header_w1_Hz or $header_w2_Hz)) {
+				Quit("not listed in Hz unit",$filename,$line);
+				}
+			}
+        elsif ($line !~ m/^(\s)*$/ and $line !~ m/\?/) {
+            @col = split (/\s+/, $line);
+			#if ($#col < $column) {
+			#	Quit("column # not found",$filename,$line);
+			#	}
+            $loc = -1;
+            foreach $bond (@B) {
+                $p = index ($col[0],$bond);
+                if ($p > 0) {
+                    $loc = $p;
+                    $bvec = $bond;
+                    }
+                }
+			# bond vector is defined
+            if ($loc > 0) {
+				# identity string
+                $idstr = substr ($col[0], 0, $loc);
+                # parenthesis () keeps the delimiter
+                @ids = split (/(-?+\d+)/, $idstr);
+				# extract residue name and number
+                $resName = $ids[0];
+                $resSeq = $ids[1];
+				# check duplicate data
+				if (defined $J{$bvec}{$resSeq}{$resName}{$idstr}{$listname}) {
+					Quit("duplicate data found",$filename,$line);
+					}
+                # store peak position in Hz
+                $J{$bvec}{$resSeq}{$resName}{$idstr}{$listname}{x} = $col[3];
+                $J{$bvec}{$resSeq}{$resName}{$idstr}{$listname}{h} = $col[4];
+				# store note
+				if ($header_note and $#col > $column) {
+                	$J{$bvec}{$resSeq}{$resName}{$idstr}{note} .= $col[$#col];
+					}
+                }
+            else {
+				Quit("bond vector type not defined",$filename,$line);
+                }
+            }
+        }
+    }
+	
+
+sub Write_Coupling {
+	($resid,$resName,$nuc1,$nuc2,$j,$err,$tag,$idstr,$d1,$d2,$note) = @_;
+	printf("%4d %-4s %-4s %-4s %7.2f %7.2f %1s # %-5s %7.2f %7.2f %s\n", 
+		$resid, $resName,$nuc1,$nuc2,$j,$err,$tag,$idstr,$d1,$d2,$note); 
+	}
+
+
+sub Quit {
+    ($message, $filename, $line) = @_;
+	printf ("\n[ERROR] %s",$message);
+    printf ("\n   ---> %s",$filename);
+    printf ("\n   ---> %s",$line);
+	printf ("\n\n");
+    exit;
+	}

@@ -1,0 +1,83 @@
+#!/usr/bin/perl
+# 
+# usage : list2csp array of .list files
+#
+# written by Sung-Hun Bae Jan 31, 2011
+#
+
+if ($#ARGV < 0) {
+    printf ("\n\tusage : list2csp [L] .list [L] .list ... [L] .list");
+    printf ("\n\n");
+    exit;
+    }
+
+# ligand concentration series
+@L = (0,0.1,0.2,0.4,0.8);
+
+@B = ("C2-H2","C5-H5","C6-H6","C8-H8","C1'-H1'");
+@C = ();
+
+$default_error = 0.001;
+
+# average chemical shift perturbation (CSP)
+
+for ($i=0;$i<= $#ARGV;$i++) {
+	&Read_Sparky_List_CSP ($i,$ARGV[$i]);
+	}
+
+foreach $res (sort {$a <=> $b} keys %C) {
+	$id = 0;
+	foreach $vec (sort keys %{$C{$res}}) {
+		print "RESIDUE $res$id 1","\n";
+		print "# $vec","\n";
+		for ($i= 0; $i <= $#ARGV; $i++) {
+			$df1 = $C{$res}{$vec}{$i}{f1} - $C{$res}{$vec}{0}{f1};
+			$df2 = $C{$res}{$vec}{$i}{f2} - $C{$res}{$vec}{0}{f2};
+			$acs = sqrt($df1*$df1/4.0 + $df2*$df2);
+			printf ("%0.3f\t%.3f\t%.4f\n", $L[$i], $acs, $default_error);
+			}
+		print "&\n";
+		$id++;
+		}
+	}
+
+sub Read_Sparky_List_CSP {
+    ($index, $filename) = @_;
+    open (INPUT,$filename) or die "cannot open $filename";
+    @list = <INPUT>;
+    close (INPUT);
+    foreach $line (@list) {
+        chomp ($line);
+        $line =~ s/^\s+//;
+        $line =~ s/\s+$//;
+        if ($line !~ m/Assignment/ and 
+            $line !~ m/^(\s)*$/ and 
+            $line !~ m/\?/) {
+            @col = split (/\s+/, $line);
+            $loc = -1;
+            foreach $bond (@B) {
+                $p = index ($col[0],$bond);
+                if ($p > 0) {
+                    $loc = $p;
+                    $bvec = $bond;
+                    }
+                }
+            if ($loc > 0) {
+                $idstr = substr ($col[0], 0, $loc);
+                # the parenthesis () keeps the delimiter
+                @ids = split (/(-?+\d+)/, $idstr);
+                $resName = $ids[0];
+                $resSeq = $ids[1];
+                # store 2-D chemical shifts
+                $C{$resSeq}{$bvec}{$index}{idstr}   = $idstr;
+				$C{$resSeq}{$bvec}{$index}{resName} = $resName;
+                $C{$resSeq}{$bvec}{$index}{f1} = $col[1];
+                $C{$resSeq}{$bvec}{$index}{f2} = $col[2];
+                }
+            else {
+                printf ("ERROR> undefined bond type: %s\n",$line);
+                exit;
+                }
+            }
+        }
+    }

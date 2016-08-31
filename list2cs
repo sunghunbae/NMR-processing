@@ -1,0 +1,71 @@
+#!/usr/bin/perl
+#
+# prepare Cshift data block from Sparky .list output
+#
+# usage : list2cs <list1>
+#
+# written by Sung-Hun Bae Nov 2, 2011
+#
+
+
+# set global variables
+@B = ("C2-H2","C5-H5","C6-H6","C8-H8","C1'-H1'","N1-H1","N3-H3");
+$default_error = 0.01;
+
+for ($i=0; $i<=$#ARGV; $i++) {
+	&Read_Sparky_List ($ARGV[$i]);
+	}
+
+sub Read_Sparky_List {
+	($filename) = @_;
+	open (INPUT,$filename) or die "cannot open $filename";
+	@list = <INPUT>;
+	close (INPUT);
+
+	$header_assignment = 0;
+	$header_w1_ppm = 0;
+	$header_w2_ppm = 0;
+
+    foreach $line (@list) {
+		# remove '\n'
+        chomp ($line);
+		# remove trailing spaces
+        $line =~ s/^\s+//;
+        $line =~ s/\s+$//;
+		# header
+        if ($line =~ m/Assignment/) {
+			$header_assignment = 1;
+			if ($line =~ m/w1    /) 	{ $header_w1_ppm = 1; }
+			if ($line =~ m/w2    /) 	{ $header_w2_ppm = 1; }
+			}
+        elsif ($line !~ m/^(\s)*$/ and $line !~ m/\?/) {
+            @col = split (/\s+/, $line);
+			$loc = -1;
+			foreach $bond (@B) {
+				$p = index ($col[0], $bond);
+				if ($p > 0) {
+					$loc = $p;
+					$bvec = $bond;
+					}
+				}
+			if ($loc > 0) {
+				# nuclei
+				@nuc = split (/-/, $bvec);
+				# identity string
+            	$idstr = substr ($col[0], 0, $loc);
+            	# parenthesis () keeps the delimiter
+            	@ids = split (/(-?+\d+)/, $idstr);
+				# extract residue name and number
+            	$resName = $ids[0];
+            	$resSeq = $ids[1];
+				$w1   = $col[1];
+				$nucx = $nuc[0];
+				$w2   = $col[2];
+				$nuch = $nuc[1];
+				$err  = $default_error;
+				printf("%4d %-4s %-4s %6.3f %6.3f\n",
+					$resSeq, $resName, $nuch, $w2, $err); 
+				}
+            }
+        }
+    }
