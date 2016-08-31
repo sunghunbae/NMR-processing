@@ -1,0 +1,22 @@
+#!/bin/tcsh
+#
+# check nmrPipe processing script
+#
+# written by Sung-Hun Bae
+#
+
+#set fid = `ls -d *.fid`
+set fid = `ls -d 2012*CUG2cn*`
+# ANSI code
+set WARNING="\033[44;37m"
+set ERROR="\033[41;37m"
+set NORM="\033[0m"
+
+foreach dir ($fid)
+	set n = `find $dir -maxdepth 1 -name \*.com | wc | awk '{print $1}'`
+	if ($n > 1) then
+		echo "${NORM}${dir}${NORM}"
+	else
+		echo "${WARNING}${dir}${NORM}"
+	endif
+end

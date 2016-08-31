@@ -1,0 +1,23 @@
+#!/bin/csh -f
+#
+# usage: conv2nv <target_dir_1> <target_dir_2> ......
+#
+# process NMR data from template NMRPipe scripts
+# template directory and scripts
+#
+# written by Sung-Hun Bae / Feb. 1 2011
+#
+
+foreach target ($argv[1-])
+    echo "<target> " $target
+	cd $target
+	./fid.com
+	./nmrproc.com
+	set curdir = `pwd`
+	set fid = `basename $curdir`
+	set nvout = `echo $fid:r`
+	pipe2xyz -out ${nvout}.nv -in test.ft2 -nv
+	mv *nv ..
+	rm -f test.fid test.ft2
+	cd ..
+end

@@ -1,0 +1,35 @@
+#!/bin/csh -f
+#
+# usage: createSave <source .save> <target .ucsf 1> <target .ucsf 2> ......
+#
+# create Sparky Save file from template
+# template .save
+#
+# written by Sung-Hun Bae / Jan. 12 2011
+#
+
+if ($#argv < 2) then
+echo ""
+echo "create Sparky Save file from template .save"
+echo "usage: createSave <source .save> <target .ucsf 1> <target .ucsf 2> ...."
+echo ""
+exit
+endif
+
+set src = $argv[1]
+if (! -e ${src} ) then
+	echo "${src} not found"
+	exit
+endif
+
+foreach ucsf ($argv[2-])
+	if (-e ${ucsf}) then
+		set base = `basename ${ucsf} .ucsf`
+		echo -n "creating ${base}.save ..."
+		awk -v id=${base} '{ \
+			if ($1=="name") { printf("name %s\n",id); } \
+			else if ($1=="pathname") {printf("pathname %s.ucsf\n",id); } \
+			else print $0; }' ${src} > ${base}.save
+		echo " done"
+	endif
+end

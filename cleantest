@@ -1,0 +1,12 @@
+#!/bin/tcsh
+set clist = ''
+set clist = ( $clist  ft data xz001.fid )
+set clist = ( $clist `find . -name test\*` )
+set clist = ( $clist `find . -name fid_\*` )
+
+foreach f ($clist)
+	if (-e $f) then
+		echo deleting $f ...
+		rm -rf $f
+	endif
+end
