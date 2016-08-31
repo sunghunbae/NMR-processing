@@ -1,8 +1,14 @@
 # NMR-processing
 NMR data conversion and processing scripts for NMRPipe and Sparky
 
-## Bruker HNCO(hncogp3d or b_hncogp3d)
-<pre>
+## Convert Bruker NMR data to NMRpipe
+
+### 3D HNCO - hncogp3d or b_hncogp3d
+### 3D HN(CA)CO - hncacogp3d or b_hncacogp3d
+### 3D HNCA - hncagp3d or b_hncagp3d
+### 3D HN(CO)CA - hncocagp3d or b_hncocagp3d
+
+```
 #!/bin/csh
 
 bruk2pipe -in ./ser \
@@ -16,4 +22,4 @@ bruk2pipe -in ./ser \
   -xLAB              HN  -yLAB             15N  -zLAB             13C  \
   -ndim               3  -aq2D          States                         \
   -out ./fid/test%03d.fid -verb -ov
-</pre>
+```
