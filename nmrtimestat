@@ -1,0 +1,65 @@
+#!/usr/bin/env python 
+#
+# usage nmrtimestat keyword
+#
+# written by Sung-Hun Bae 2011/9/15
+
+import datetime,os,sys,time
+
+if (len(sys.argv) < 2):
+  print ""
+  print "\tNMR Time Statistics"
+  print ""
+  print "\tUsage nmrtimestat keyword"
+  print ""
+  sys.exit(1)
+
+keyword = sys.argv[1]
+dirList = os.listdir("./")
+
+num_NA = 0
+num_est = 0
+num_expts = 0
+total_time = datetime.timedelta()
+total_time_est = datetime.timedelta()
+
+for dir in sorted(dirList):
+  if keyword in dir:
+    try:
+      f = open(dir+"/log",'r')
+      begin_defined = False
+      finish_defined = False
+      for line in f.readlines():
+        if "Experiment" in line:
+          begin_defined = True
+          begin =  datetime.datetime(*time.strptime(line[:24])[0:5])
+          #print begin
+        if "Acquisition" in line:
+          finish_defined = True
+          finish = datetime.datetime(*time.strptime(line[:24])[0:5])
+          #print finish
+      num_expts = num_expts + 1
+      if begin_defined and finish_defined:
+        diff = finish - begin
+	total_time = total_time + diff
+        print "%-80s Duration= %s" % (dir,diff)
+      else:
+        line = time.ctime(os.path.getmtime(dir+"/fid"))
+        finish = datetime.datetime(*time.strptime(line[:24])[0:5])
+        diff = finish - begin
+	if diff < datetime.timedelta(days=5):
+	  total_time_est = total_time_est + diff
+          print "%-80s Duration(est)= %s %s" % (dir,diff,line[:24])
+          num_est = num_est + 1
+        else:
+          print "%-80s Duration(est)= NA" % (dir)
+          num_NA = num_NA + 1
+    except IOError:
+      print "%-80s Error: cannot open log file" % (dir)
+
+print ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+print ">>> %4d %-30s" % (num_expts,"Expts in Total")
+print ">>> %4d %-30s %-20s" % (num_expts-num_NA-num_est, "Expts Time", total_time)
+print ">>> %4d %-30s %-20s" % (num_est,"Expts Time(estimated)",total_time_est)
+print ">>> %4d %-30s" % (num_NA,"Expts Time(NA)")
+print ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
