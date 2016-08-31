@@ -1,0 +1,92 @@
+#!/usr/bin/env python
+#
+# modify fid.com to adjust reference
+# written by Sung-Hun Bae 08/22/2011
+#
+
+gammaratio_c = 0.251449530
+gammaratio_n = 0.101329120
+
+import sys,re
+
+# read procpar from current directory
+try:
+  f = open('./procpar','r')
+except IOError:
+  print ">>> ERROR: cannot open ./procpar"
+  sys.exit(1)
+
+# initialize storage
+Parameter = {}
+
+# get a single value
+def getval (s):
+	return float (Parameter[s][0])
+
+# parse procpar
+# Line1 : parameter name and attributes
+# Line2 : value(s)
+# Line3 : available option(s)
+Line1 = re.compile(r"^[a-zA-Z]")
+Line2 = False
+Line3 = False
+param = 'None'
+value = 'None'
+for line in f.readlines():
+	line = line.rstrip()
+	line = line.lstrip()
+	if Line1.match(line):
+		param = (line.split())[0]
+		Line2 = True
+	elif Line2:
+		value = line.split()
+		del value[0]
+		Parameter[param] = value
+		# print param, value
+		Line2 = False
+		Line3 = True
+	elif Line3:
+		Line3 = False
+
+#######################################
+#####
+##### calculate carrier frequencies
+#####
+#######################################
+
+sfrq   = getval("sfrq")
+dfrq   = getval("dfrq")
+dfrq2  = getval("dfrq2")
+sw     = getval("sw")
+sw1    = getval("sw1")
+sw2    = getval("sw2")
+rfl    = getval("rfl")
+rfp    = getval("rfp")
+np     = getval("np")
+ni     = getval("ni")
+ni2    = getval("ni2")
+
+# zero frequency (MHz)
+reffrq_h = sfrq - (sw/2-rfl+rfp)*1e-6
+reffrq_c = gammaratio_c * reffrq_h
+reffrq_n = gammaratio_n * reffrq_h
+
+# carrier frequency (ppm) 
+h_ppm = (sw/2-rfl+rfp)/reffrq_h
+c_ppm = 1.0e6*(dfrq  - reffrq_c)/reffrq_c
+n_ppm = 1.0e6*(dfrq2 - reffrq_n)/reffrq_n
+
+print " "
+print "   np = %4d   sw = %12f" % (np,sw)
+print "   ni = %4d   sw1= %12f" % (ni,sw1)
+print "   ni2= %4d   sw2= %12f" % (ni2,sw2)
+print " "
+print "   H1  OBS %10f" % (sfrq)
+print "   H1  CAR %10f" % (h_ppm) 
+print " "
+print "   C13 OBS %10f" % (dfrq)
+print "   C13 CAR %10f" % (c_ppm) 
+print " "
+print "   N15 OBS %10f" % (dfrq2)
+print "   N15 CAR %10f" % (n_ppm) 
+print " "
