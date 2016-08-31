@@ -1,0 +1,14 @@
+#!/bin/csh -f
+set curdir = `pwd`
+set fid = `basename $curdir`
+set ucsfname = `echo $fid:r`
+
+if (-e test.ft2) then
+  pipe2ucsf test.ft2 $ucsfname.ucsf
+else
+set FT2 = `ls -1 test_*.ft2`
+foreach f ($FT2)
+   set num = `echo $f |cut -d'_' -f2 | cut -d '.' -f1`
+   pipe2ucsf test_${num}.ft2 ${ucsfname}_${num}.ucsf
+end
+endif
