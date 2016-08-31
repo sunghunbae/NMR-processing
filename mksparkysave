@@ -1,0 +1,147 @@
+#!/bin/tcsh
+#
+# create initial sparky .save file 11/29/2011
+#
+# written by Sung-Hun Bae
+#
+
+set curdir = `pwd`
+set ucsffiles = `find ./ -maxdepth 1 -name \*.ucsf | sort`
+
+# ANSI code
+set WARNING="\033[44;37m"
+set ERROR="\033[41;37m"
+set NORM="\033[0m"
+
+# check if .save file exists
+foreach a ($ucsffiles)
+	set ucsfbase = `basename $a .ucsf`
+	awk -v str=${ucsfbase} 'BEGIN{printf("%-72s ",substr(str,0,72))}'
+	if ( -e ${ucsfbase}.save ) then
+		echo "${NORM}skipped"
+	else
+		# create .save file
+		set outfile = "${ucsfbase}.save"
+		set points = `ucsfdata $a | grep matrix | cut -d' ' -f3-`
+		set f1nuc = `ucsfdata $a | grep nucleus | awk '{print substr($2,0,2)}'`
+
+		cat << STOP > $outfile
+<sparky save file>
+<version 3.113>
+<user>
+set mode 0
+set saveprompt 0
+set saveinterval 0
+set resizeViews 0
+set keytimeout 3000
+set cachesize 4
+set contourgraying 1
+default print command lpr
+default print file
+default print options 2 27 1.000000 1.000000
+<end user>
+<spectrum>
+STOP
+		echo "name ${ucsfbase}" >> $outfile
+		echo "pathname ${a}" 	>> $outfile
+		echo "dimension 2"		>> $outfile
+		echo "shift 0.00 0.00"	>> $outfile
+		echo "points ${points}" >> $outfile
+
+		cat << STOP >> $outfile
+assignMultiAxisGuess 0
+assignGuessThreshold 0.000000
+assignRelation 1 4
+assignRelation 2 4
+assignRange 1 0.000000
+assignRange 2 0.000000
+assignFormat %a1-%a2
+listTool sortBy label
+listTool nameType assignment
+listTool sortAxis w1
+listTool showFlags frequency frequency-hz
+integrate.overlapped_sep 300.000 30.000
+integrate.methods 1 0 1
+integrate.allow_motion 1
+integrate.adjust_linewidths 1
+integrate.motion_range 0.100 0.010
+integrate.min_linewidth 0.0329 0.0033
+integrate.max_linewidth 3.2908 0.3335
+integrate.fit_baseline 0
+integrate.subtract_peaks 0
+integrate.contoured_data 1
+integrate.rectangle_data 0
+integrate.maxiterations 10000
+integrate.tolerance 0.001000
+peak.pick 0.000000 0.000000 0.000000 0.000000 0
+peak.pick-minimum-linewidth 0.000000 0.000000
+peak.pick-minimum-dropoff 0.00
+STOP
+		if ($f1nuc == 13) then
+			echo "ornament.label.size  60.0" >> $outfile
+			echo "ornament.peak.size   30.0" >> $outfile
+		endif
+		if ($f1nuc == 15) then
+			echo "ornament.label.size 120.0" >> $outfile
+			echo "ornament.peak.size   60.0" >> $outfile
+		endif
+
+		cat << STOP >> $outfile
+ornament.line.size 0.5
+ornament.grid.size 0.5
+ornament.peakgroup.size 0.8
+ornament.selectsize 0.5
+ornament.pointersize 0.5
+ornament.lineendsize 0.5
+<attached data>
+<end attached data>
+<view>
+STOP
+
+		echo "name ${ucsfbase}" >> $outfile
+		cat << STOP >> $outfile
+precision 0
+precision_by_units 0 0 0
+viewmode 0
+show 1 label line peak grid peakgroup
+axistype 2
+flags crosshair crosshair2
+STOP
+		if ($f1nuc == 13) then
+			echo "contour.pos 20  0.5e4 1.2 0.0 green" 	>> $outfile
+			echo "contour.neg 20 -0.5e4 1.2 0.0 red"	>> $outfile
+		endif
+		if ($f1nuc == 15) then
+			echo "contour.pos 20  2.5e4 1.2 0.0 green" 	>> $outfile
+			echo "contour.neg 20 -2.5e4 1.2 0.0 red"	>> $outfile
+		endif
+
+		cat << STOP >> $outfile
+<params>
+orientation 1 0
+location 113 63
+size 500 500
+offset -678.035266 82.655976
+STOP
+		if ($f1nuc == 13) then
+			echo "scale 1.0 2.5" 	>> $outfile
+			echo "zoom  0.3" 		>> $outfile
+		endif
+		if ($f1nuc == 15) then
+			echo "scale 1.0 10.0" 	>> $outfile
+			echo "zoom  0.1" 		>> $outfile
+		endif
+	
+		cat << STOP >> $outfile
+flags 0
+<end params>
+<end view>
+<ornament>
+<end ornament>
+<end spectrum>
+STOP
+
+		echo "${WARNING}created${NORM}"
+
+	endif
+end

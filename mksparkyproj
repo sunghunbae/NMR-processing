@@ -1,0 +1,59 @@
+#!/bin/tcsh
+#
+# create initial sparky .save file 11/29/2011
+#
+# written by Sung-Hun Bae
+#
+
+set curdir = `pwd`
+
+# ANSI code
+set WARNING="\033[44;37m"
+set ERROR="\033[41;37m"
+set NORM="\033[0m"
+
+if ($# < 2) then
+	echo ""
+	echo "\tusage: mksparkyproj x.proj 1.save 2.save 3.save ......"
+	echo ""
+	exit
+endif
+
+set outfile = $1
+
+cat << STOP > $outfile
+<sparky project file>
+<version 3.113>
+<savefiles>
+STOP
+
+shift
+
+foreach save ($*)
+  if (-e $save) then
+      echo "${NORM}$save ok"
+	  echo ${save} >> $outfile
+  else
+      echo "${NORM}$save ${ERROR}not found${NORM}"
+  endif
+end
+
+cat << STOP >> $outfile
+<end savefiles>
+<options>
+<end options>
+<overlays>
+<end overlays>
+<attached data>
+<end attached data>
+<molecule>
+name
+<attached data>
+<end attached data>
+<condition>
+name
+<resonances>
+<end resonances>
+<end condition>
+<end molecule>
+STOP
