@@ -1,6 +1,6 @@
 # tcsh coloring
 Insert the following lines to the ~/.cshrc 
-
+<pre>
 set     red="%{\033[1;31m%}"
 set   green="%{\033[0;32m%}"
 set  yellow="%{\033[1;33m%}"
@@ -17,6 +17,7 @@ alias ls ls --color=auto
 alias ll ls -alF
 alias la ls -A
 alias l  ls -C
+</pre>
 
 # NMR-processing
 NMR data conversion and processing scripts for NMRPipe and Sparky
