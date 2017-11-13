@@ -1,0 +1,217 @@
+#!/usr/bin/env python
+#
+# Correct spectral referencing for Varian/Agilent NMR data
+# outside of VnmrJ software
+# 
+# written by Sung-Hun Bae 08/22/2011
+# updated by Sung-Hun Bae 10/25/2017
+#
+# sfrq - spectrometer frequency, accurate to all decimal places
+#
+# tof  - a parameter that makes changing sfrq simple
+# 	tof has no other value or property:  change it by +105 Hz,
+# 	and sfrq will increase by 105 Hz.  tof is therefore not
+# 	involved in absolute frequency calculations.
+#
+# rfl  - the frequency from the right edge of the spectrum to the
+# 	reference line (as described by rfp)
+#
+# rfp - the frequency of the reference position to 0 ppm; e.g., if
+# 	use residual water as reference at 4.7ppm (not recommended)
+# 	rfp = 4.7p = 2821 Hz (@600.13MHz)
+#
+# varian introduced two new parameters in vnmr6.1c:
+#
+# reffrq - most of the time, from the previous page
+# refpos - almost always set =0  (easiest if rfp is also =0)
+
+import sys,re
+import os
+
+from optparse import OptionParser
+
+""" constants """
+gamma_ratio_c = 0.251449530
+gamma_ratio_n = 0.101329120
+
+""" Parse a NMRPipe conversion file """
+def read_varian_conv(filename):
+
+    if not os.path.isfile(filename):
+        return
+    Lines= []
+    ConvPar = {}
+    try:
+        f = open(filename,'r')
+        for line in f.readlines():
+            for m in re.finditer('(?P<par>[xyz][A-Z]+)\s+(?P<val>\d+\.\d+)',line):
+                # store matched string
+                ConvPar[ m.group("par")] = {
+                    'txt': m.group(),
+                    'val':float(m.group("val"))
+                }
+            Lines.append(line)
+        f.close()
+        return Lines, ConvPar
+    except:
+        pass
+
+""" Parse a procpar file """
+def read_procpar(filename):
+    Parameter = {}
+    try:
+        f = open(filename, 'r')
+
+        # Line1 : parameter name and attributes
+        # Line2 : value(s)
+        # Line3 : available option(s)
+        # ex.
+        # sw 1 1 5 5 5 2 1 8203 1 64
+        # 1 13157.8947368
+        # 0
+
+        Line1 = re.compile(r"^[a-zA-Z]")
+        Line2 = False
+        Line3 = False
+        param = 'None'
+        value = 'None'
+
+        for line in f.readlines():
+            line = line.rstrip()
+            line = line.lstrip()
+            if Line1.match(line):
+                param = (line.split())[0]
+                Line2 = True
+            elif Line2:
+                value = line.split()
+                del value[0]
+                Parameter[param] = value
+                # print param, value
+                Line2 = False
+                Line3 = True
+            elif Line3:
+                Line3 = False
+        return Parameter
+
+    except IOError:
+        print ">>> ERROR: cannot open %s" % filename
+        sys.exit(1)
+
+# get a single value
+def getval (Parameter, s):
+    if s in Parameter :
+        try:
+            return float(Parameter[s][0]) # number
+        except:
+            return Parameter[s][0].replace('"','') # string
+    else :
+        return 0.0
+
+""" command line options """
+
+parser= OptionParser()
+parser.add_option( "-r", "--ref", dest="ref", default="",
+                   help="copy referencing from other experiment",
+                   metavar="exp")
+
+(options, args) = parser.parse_args()
+
+""" read procpar file(s) """
+p = read_procpar("./procpar")
+if options.ref :
+    x = read_procpar(options.ref + "/procpar")
+
+""" read the fid.com """
+convlines, convpar = read_varian_conv("./fid.com")
+
+""" calculate zero ppm frequency (MHz) """
+
+if options.ref :
+    sfrq = getval(x,"sfrq")
+    sw   = getval(x, "sw")
+    rfl  = getval(x,"rfl")
+    rfp  = getval(x,"rfp")
+else :
+    sfrq = getval(p, "sfrq")
+    sw   = getval(p, "sw")
+    rfl  = getval(p, "rfl")
+    rfp  = getval(p, "rfp")
+
+reffrq_h = sfrq - (sw/2-rfl+rfp)*1e-6
+reffrq_c = gamma_ratio_c * reffrq_h
+reffrq_n = gamma_ratio_n * reffrq_h
+
+""" read current parameters """
+
+reffrq  = getval(p,"reffrq")
+refpos  = getval(p,"refpos")
+sfrq    = getval(p,"sfrq")
+dfrq    = getval(p,"dfrq")
+dfrq2   = getval(p,"dfrq2")
+sw      = getval(p,"sw")
+sw1     = getval(p,"sw1")
+sw2     = getval(p,"sw2")
+tof     = getval(p,"tof")
+dof     = getval(p,"dof")
+dof2    = getval(p,"dof2")
+rfl     = getval(p,"rfl")
+rfp     = getval(p,"rfp")
+np      = getval(p,"np")
+ni      = getval(p,"ni")
+ni2     = getval(p,"ni2")
+tn      = getval(p,"tn")
+dn      = getval(p,"dn")
+dn2     = getval(p,"dn2")
+
+""" carrier frequency (ppm) """
+
+h_ppm = 1.0e6*(sfrq  - reffrq_h)/reffrq_h
+c_ppm = 1.0e6*(dfrq  - reffrq_c)/reffrq_c
+n_ppm = 1.0e6*(dfrq2 - reffrq_n)/reffrq_n
+
+""" print out """
+
+print " "
+print "   reffrq= ", reffrq, "(",refpos,")"
+print "   calc.=  ", reffrq_h
+print " "
+print "   %-3s sfrq = %11.7f %8.3f ppm (tof =%8.1f)" % (tn, sfrq, h_ppm,tof)
+print "   %-3s dfrq = %11.7f %8.3f ppm (dof =%8.1f)" % (dn, dfrq, c_ppm,dof)
+print "   %-3s dfrq2= %11.7f %8.3f ppm (dof2=%8.1f)" % (dn2,dfrq2,n_ppm,dof2)
+print " "
+print "   np = %4d   sw = %12f" % (np,sw)
+if (ni > 0):
+    print "   ni = %4d   sw1= %12f" % (ni,sw1)
+if (ni2 >0):
+    print "   ni2= %4d   sw2= %12f" % (ni2,sw2)
+print " "
+
+""" fixing fid.com """
+if convlines and convpar :
+    os.chmod("./fid.com",0644) # chmod -x
+    os.rename("./fid.com", "./fid.com.varian")
+    f = open("./fid.com", "w")
+    for line in convlines :
+        if re.search("[xyz]CAR\s+",line):
+            # modify the carrier frequencies
+            fixed= re.sub(convpar["xCAR"]["txt"],"xCAR%16.3f" % h_ppm,line)
+            if "yOBS" in convpar :
+                if   abs(convpar["yOBS"]["val"]-convpar["xOBS"]["val"]) < 1.0 :
+                    fixed= re.sub(convpar["yCAR"]["txt"],"yCAR%16.3f" % h_ppm,fixed)
+                elif abs(convpar["yOBS"]["val"]-convpar["xOBS"]["val"]*gamma_ratio_c) < 1.0 :
+                    fixed= re.sub(convpar["yCAR"]["txt"],"yCAR%16.3f" % c_ppm,fixed)
+                elif abs(convpar["yOBS"]["val"]-convpar["xOBS"]["val"]*gamma_ratio_n) < 1.0 :
+                    fixed= re.sub(convpar["yCAR"]["txt"],"yCAR%16.3f" % n_ppm,fixed)
+            if "zOBS" in convpar :
+                if   abs(convpar["zOBS"]["val"]-convpar["xOBS"]["val"]) < 1.0 :
+                    fixed= re.sub(convpar["zCAR"]["txt"],"zCAR%16.3f"   % h_ppm,fixed)
+                elif abs(convpar["zOBS"]["val"]-convpar["xOBS"]["val"] * gamma_ratio_c) < 1.0:
+                    fixed = re.sub(convpar["zCAR"]["txt"], "zCAR%16.3f" % c_ppm, fixed)
+                elif abs(convpar["yOBS"]["val"]-convpar["xOBS"]["val"] * gamma_ratio_n) < 1.0:
+                    fixed = re.sub(convpar["zCAR"]["txt"], "zCAR%16.3f" % n_ppm, fixed)
+            f.write(fixed)
+            print "   ", line.lstrip(), "-->",fixed.lstrip(),
+        else:
+            f.write(line)
+    f.close()
+    os.chmod("./fid.com",0744) # chmod +x
